@@ -2,9 +2,6 @@ const { createUserWithAuth, loginUserByEmail, getUser, updateUser, logoutUser } 
 const admin = require('firebase-admin');
 
 // Inicialize o Firebase Admin com suas credenciais
-admin.initializeApp({
-  credential: admin.credential.applicationDefault(), // ou use admin.credential.cert(serviceAccount) se você tiver um arquivo de chave
-});
 
 // Registrar novo usuário
 async function registerUser(req, res) {
