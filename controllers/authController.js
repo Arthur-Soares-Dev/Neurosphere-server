@@ -2,7 +2,7 @@
 const multer = require('multer');
 const { firestore, storage, auth } = require('../config/firebase');
 const upload = multer({ storage: multer.memoryStorage() }).single('image');
-
+//teste
 
 async function registerUser(req, res) {
     const { email, password, name } = req.body;
