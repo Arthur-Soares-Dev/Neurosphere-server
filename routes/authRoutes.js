@@ -4,7 +4,6 @@ const authenticate = require("../middleware/verifyToken");
 
 const router = express.Router();
 
-// Rotas de autenticação
 router.get('/', (req, res) => {
     res.send('Autenticação API está funcionando!');
 });

@@ -1,7 +1,6 @@
 const { firestore } = require('../config/firebase');
 const { getTasks, addTask, updateTask, deleteTask } = require('../controllers/tasksController');
 
-// Criando o mock para o Firestore
 jest.mock('../config/firebase', () => ({
     firestore: {
         collection: jest.fn().mockReturnThis(),
@@ -34,10 +33,8 @@ describe('Tasks Controller', () => {
             status: jest.fn().mockReturnThis(),
         };
 
-        // Chamando o método getTasks
         await getTasks(req, res);
 
-        // Verificando se a coleção 'users' foi chamada corretamente
         expect(firestore.collection).toHaveBeenCalledWith('users');
         expect(firestore.collection().doc).toHaveBeenCalledWith('123');
         expect(firestore.collection().doc().collection).toHaveBeenCalledWith('Tasks');
@@ -76,10 +73,8 @@ describe('Tasks Controller', () => {
             status: jest.fn().mockReturnThis(),
         };
 
-        // Chamando o método addTask
         await addTask(req, res);
 
-        // Verificando se a coleção 'users' foi chamada corretamente
         expect(firestore.collection).toHaveBeenCalledWith('users');
         expect(firestore.collection().doc).toHaveBeenCalledWith('123');
         expect(firestore.collection().doc().collection).toHaveBeenCalledWith('Tasks');
@@ -95,7 +90,6 @@ describe('Tasks Controller', () => {
             userId: '123',
         });
 
-        // Verificando o retorno da resposta
         expect(res.status).toHaveBeenCalledWith(201);
         expect(res.json).toHaveBeenCalledWith({
             title: 'Tarefa criada com sucesso',
@@ -120,24 +114,21 @@ describe('Tasks Controller', () => {
             status: jest.fn().mockReturnThis(),
         };
 
-        // Mockando a cadeia de chamadas do Firestore
         const updateMock = jest.fn();
-        const getMock = jest.fn().mockResolvedValue({ exists: true });  // Mock de `get()` retornando um documento existente
+        const getMock = jest.fn().mockResolvedValue({ exists: true });
         firestore.collection = jest.fn().mockReturnValue({
             doc: jest.fn().mockReturnValue({
                 collection: jest.fn().mockReturnValue({
                     doc: jest.fn().mockReturnValue({
-                        update: updateMock, // Mock do update
-                        get: getMock, // Mock do get
+                        update: updateMock,
+                        get: getMock,
                     }),
                 }),
             }),
         });
 
-        // Chamando o método updateTask
         await updateTask(req, res);
 
-        // Verificando se as chamadas encadeadas foram feitas corretamente
         expect(firestore.collection).toHaveBeenCalledWith('users');
         expect(firestore.collection().doc).toHaveBeenCalledWith('123');
         expect(firestore.collection().doc().collection).toHaveBeenCalledWith('Tasks');
@@ -150,7 +141,6 @@ describe('Tasks Controller', () => {
             tags: ['updated'],
         });
 
-        // Verificando o retorno da resposta
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
             title: 'Tarefa atualizada com sucesso',
@@ -168,30 +158,26 @@ describe('Tasks Controller', () => {
             status: jest.fn().mockReturnThis(),
         };
 
-        // Mockando a cadeia de chamadas do Firestore
         const deleteMock = jest.fn();
         firestore.collection = jest.fn().mockReturnValue({
             doc: jest.fn().mockReturnValue({
                 collection: jest.fn().mockReturnValue({
                     doc: jest.fn().mockReturnValue({
-                        get: jest.fn().mockResolvedValue({ exists: true }), // Mockando a resposta de get()
-                        delete: deleteMock, // Mock do delete
+                        get: jest.fn().mockResolvedValue({ exists: true }),
+                        delete: deleteMock,
                     }),
                 }),
             }),
         });
 
 
-        // Chamando o método deleteTask
         await deleteTask(req, res);
 
-        // Verificando se as chamadas encadeadas foram feitas corretamente
         expect(firestore.collection).toHaveBeenCalledWith('users');
         expect(firestore.collection().doc).toHaveBeenCalledWith('123');
         expect(firestore.collection().doc().collection).toHaveBeenCalledWith('Tasks');
         expect(firestore.collection().doc().collection().doc('task1').delete).toHaveBeenCalled();
 
-        // Verificando o retorno da resposta
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({
             title: 'Tarefa deletada com sucesso',

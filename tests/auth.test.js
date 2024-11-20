@@ -1,4 +1,3 @@
-// authController.test.js
 const { registerUser, login, updateUserProfile, logout, getUserProfile, upload } = require('../controllers/authController');
 const { firestore, storage, auth } = require('../config/firebase');
 
@@ -27,7 +26,7 @@ describe('Auth Controller', () => {
         req = { body: {}, params: {}, file: undefined };
         res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
         next = jest.fn();
-        jest.clearAllMocks(); // Limpa mocks antes de cada teste
+        jest.clearAllMocks();
     });
 
     describe('registerUser', () => {

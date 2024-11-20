@@ -1,21 +1,28 @@
-const { firestore } = require('../config/firebase'); // Importando Firestore corretamente
+const { firestore } = require('../config/firebase');
 
-// Função utilitária para verificar se userId está presente
-function validateUserId(userId) {
-  console.log('userId2', userId);
-  if (!userId) {
-    throw new Error('userId é obrigatório');
-  }
-}
-
-// Controller para obter todas as tarefas de um usuário
+/**
+ * Recupera as tarefas de um usuário específico com base no `userId` fornecido.
+ *
+ * @param {Object} req - Objeto da requisição HTTP.
+ * @param {Object} req.query - Query parameters da requisição.
+ * @param {string} req.query.userId - Identificador único do usuário cujas tarefas serão recuperadas.
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ *
+ * Fluxo de execução:
+ * 1. Lê o `userId` a partir dos parâmetros de consulta (`req.query`).
+ * 2. Busca as tarefas no Firestore na subcoleção `Tasks` dentro do documento do usuário.
+ * 3. Processa os documentos da subcoleção para criar um array de tarefas.
+ * 4. Retorna o array de tarefas como resposta em formato JSON com status HTTP 200.
+ * 5. Em caso de erro, retorna uma mensagem de erro com status HTTP 400.
+ *
+ * @throws {Error} - Lança erros se ocorrer uma falha ao acessar ou processar os dados no Firestore.
+ */
 async function getTasks(req, res) {
   const { userId } = req.query;
-  console.log('userId recebido:', userId); // Log para verificar o valor do userId
+  console.log('userId recebido:', userId);
   try {
-    // validateUserId(userId);
 
-    const tasksRef = firestore.collection('users').doc(userId).collection('Tasks'); // Estrutura correta
+    const tasksRef = firestore.collection('users').doc(userId).collection('Tasks');
     const snapshot = await tasksRef.get();
 
     const tasks = [];
@@ -37,12 +44,36 @@ async function getTasks(req, res) {
   }
 }
 
+/**
+ * Adiciona uma nova tarefa para o usuário no sistema.
+ *
+ * @param {Object} req - Objeto da requisição HTTP.
+ * @param {Object} req.body - Corpo da requisição contendo os dados da tarefa.
+ * @param {string} req.body.userId - Identificador único do usuário para o qual a tarefa será adicionada.
+ * @param {string} req.body.name - Nome da tarefa.
+ * @param {string} [req.body.description] - Descrição da tarefa (opcional).
+ * @param {string} [req.body.date] - Data da tarefa (opcional).
+ * @param {string} [req.body.startTime] - Hora de início da tarefa (opcional).
+ * @param {string} [req.body.endTime] - Hora de término da tarefa (opcional).
+ * @param {boolean} req.body.completed - Status da tarefa (se está completada ou não).
+ * @param {boolean} req.body.favorite - Indica se a tarefa é favorita.
+ * @param {Array} [req.body.tags] - Lista de tags associadas à tarefa (opcional).
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ *
+ * Fluxo de execução:
+ * 1. Valida se os dados obrigatórios estão presentes e se os dados opcionais têm os tipos corretos.
+ * 2. Se algum dado for inválido, retorna um erro com status HTTP 400 e a mensagem de erro correspondente.
+ * 3. Se os dados forem válidos, cria um novo documento na subcoleção `Tasks` do usuário especificado no Firestore.
+ * 4. Retorna uma resposta de sucesso com o status HTTP 201 e o ID da nova tarefa criada.
+ * 5. Em caso de erro durante o processo, retorna uma mensagem de erro com status HTTP 500.
+ *
+ * @throws {Error} - Lança erros se houver falha na criação ou validação dos dados da tarefa.
+ */
 const addTask = async (req, res) => {
-  const { userId, name, description, date, startTime, endTime, completed, favorite, tags } = req.body; // Obtendo dados da requisição
+  const { userId, name, description, date, startTime, endTime, completed, favorite, tags } = req.body;
   console.log('userId', userId);
-  console.log('Dados da tarefa recebidos:', req.body); // Log dos dados recebidos
+  console.log('Dados da tarefa recebidos:', req.body);
 
-  // Valida se os dados da tarefa são válidos
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
     return res.status(400).json({
       title: 'Erro na validação',
@@ -107,7 +138,6 @@ const addTask = async (req, res) => {
   }
 
   try {
-    // Usando o Firestore para criar a tarefa diretamente aqui
     const taskRef = firestore.collection('users').doc(userId).collection('Tasks').doc();
     await taskRef.set({
       name,
@@ -135,14 +165,40 @@ const addTask = async (req, res) => {
   }
 };
 
-// Controller para atualizar uma tarefa existente
+/**
+ * Atualiza uma tarefa existente para o usuário especificado.
+ *
+ * @param {Object} req - Objeto da requisição HTTP.
+ * @param {Object} req.params - Parâmetros da requisição.
+ * @param {string} req.params.taskId - Identificador único da tarefa a ser atualizada.
+ * @param {Object} req.body - Corpo da requisição contendo os dados atualizados da tarefa.
+ * @param {string} req.body.userId - Identificador único do usuário dono da tarefa.
+ * @param {string} req.body.name - Nome da tarefa (opcional).
+ * @param {string} [req.body.description] - Descrição da tarefa (opcional).
+ * @param {string} [req.body.date] - Data da tarefa (opcional).
+ * @param {string} [req.body.startTime] - Hora de início da tarefa (opcional).
+ * @param {string} [req.body.endTime] - Hora de término da tarefa (opcional).
+ * @param {boolean} req.body.completed - Status de completado da tarefa.
+ * @param {boolean} req.body.favorite - Status de favorito da tarefa.
+ * @param {Array} [req.body.tags] - Lista de tags associadas à tarefa (opcional).
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ *
+ * Fluxo de execução:
+ * 1. Valida se o `userId` fornecido é válido.
+ * 2. Verifica se a tarefa com o `taskId` especificado existe no Firestore.
+ * 3. Se a tarefa não for encontrada, retorna um erro com status HTTP 404.
+ * 4. Se a tarefa for encontrada, atualiza os dados da tarefa com as informações fornecidas.
+ * 5. Retorna uma resposta de sucesso com status HTTP 200.
+ * 6. Em caso de erro, retorna uma mensagem de erro com status HTTP 500.
+ *
+ * @throws {Error} - Lança erros se ocorrer falha na validação ou na atualização dos dados.
+ */
 async function updateTask(req, res) {
   const { taskId } = req.params;
   const taskData = req.body;
-  console.log('Dados da tarefa recebidos para atualização:', taskData); // Log para verificar os dados recebidos
+  console.log('Dados da tarefa recebidos para atualização:', taskData);
 
   try {
-    // Validação do userId
     if (!taskData.userId || typeof taskData.userId !== 'string' || taskData.userId.trim() === '') {
       return res.status(400).json({
         title: 'Erro na validação',
@@ -150,7 +206,6 @@ async function updateTask(req, res) {
       });
     }
 
-    // Verifica se a tarefa existe e pertence ao usuário
     const taskRef = firestore.collection('users').doc(taskData.userId).collection('Tasks').doc(taskId);
     const doc = await taskRef.get();
 
@@ -161,10 +216,8 @@ async function updateTask(req, res) {
       });
     }
 
-    // Atualiza a tarefa no Firestore
     await taskRef.update(taskData);
 
-    // Responde com a confirmação de atualização
       console.log('Tarefa atualizada com sucesso')
     res.status(200).json({
       title: 'Tarefa atualizada com sucesso',
@@ -179,14 +232,32 @@ async function updateTask(req, res) {
   }
 }
 
-// Controller para deletar uma tarefa
+/**
+ * Deleta uma tarefa existente para o usuário especificado.
+ *
+ * @param {Object} req - Objeto da requisição HTTP.
+ * @param {Object} req.params - Parâmetros da requisição.
+ * @param {string} req.params.taskId - Identificador único da tarefa a ser deletada.
+ * @param {Object} req.query - Query parameters da requisição.
+ * @param {string} req.query.userId - Identificador único do usuário dono da tarefa.
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ *
+ * Fluxo de execução:
+ * 1. Valida se o `userId` fornecido é válido.
+ * 2. Verifica se a tarefa com o `taskId` especificado existe no Firestore.
+ * 3. Se a tarefa não for encontrada, retorna um erro com status HTTP 404.
+ * 4. Se a tarefa for encontrada, deleta a tarefa do Firestore.
+ * 5. Retorna uma resposta de sucesso com status HTTP 200.
+ * 6. Em caso de erro, retorna uma mensagem de erro com status HTTP 500.
+ *
+ * @throws {Error} - Lança erros se ocorrer falha na validação ou na deleção dos dados.
+ */
 async function deleteTask(req, res) {
   const { taskId } = req.params;
-  const { userId } = req.query; // Obtendo userId da query string
-  console.log('userId', userId); // Log para verificar o valor de userId
+  const { userId } = req.query;
+  console.log('userId', userId);
 
   try {
-    // Validação do userId
     if (!userId || typeof userId !== 'string' || userId.trim() === '') {
       return res.status(400).json({
         title: 'Erro na validação',
@@ -194,7 +265,6 @@ async function deleteTask(req, res) {
       });
     }
 
-    // Verifica se a tarefa existe e pertence ao usuário
     const taskRef = firestore.collection('users').doc(userId).collection('Tasks').doc(taskId);
     const doc = await taskRef.get();
 

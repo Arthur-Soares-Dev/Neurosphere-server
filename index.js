@@ -14,11 +14,11 @@ app.use(session({
     cookie: { secure: false }
 }));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 3,
-  keyGenerator: () => 'global',
-});
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 3,
+//   keyGenerator: () => 'global',
+// });
 
 // app.use(limiter);
 

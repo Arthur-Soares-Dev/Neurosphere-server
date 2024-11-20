@@ -2,7 +2,15 @@ const multer = require('multer');
 const { firestore, storage, auth } = require('../config/firebase');
 const upload = multer({ storage: multer.memoryStorage() }).single('image');
 
-// Função para obter o usuário
+
+/**
+ * Busca os dados de um usuário no Firestore com base no UID fornecido.
+ *
+ * @param {string} uid - Identificador único do usuário. Usado para localizar o documento na coleção `users`.
+ * @returns {Promise<Object>} - Um objeto contendo o UID e os dados do documento do Firestore.
+ * @throws {Error} - Lança um erro se o documento não existir ou se ocorrer algum problema ao buscar os dados.
+ *
+ */
 async function getUser(uid) {
   try {
     const userDoc = await firestore.collection('users').doc(uid).get();
@@ -15,29 +23,45 @@ async function getUser(uid) {
   }
 }
 
-// Registrar novo usuário
+/**
+ * Registra um novo usuário no sistema.
+ *
+ * @param {Object} req - Objeto da requisição HTTP contendo os dados do usuário.
+ * @param {Object} req.body - Corpo da requisição contendo as informações do usuário.
+ * @param {string} req.body.email - Endereço de e-mail do usuário.
+ * @param {string} req.body.password - Senha do usuário.
+ * @param {string} req.body.name - Nome do usuário.
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ * @param {Function} next - Função de callback para passar para o próximo middleware em caso de erro.
+ *
+ * @throws {Error} - Lança erros se os campos obrigatórios não forem fornecidos,
+ *                   se ocorrer um problema ao criar o usuário no sistema de autenticação,
+ *                   ou se houver falha ao salvar ou buscar os dados no Firestore.
+ *
+ * Fluxo de execução:
+ * 1. Valida se os campos `email`, `password` e `name` estão presentes.
+ * 2. Cria um novo usuário no sistema de autenticação usando `auth.createUser`.
+ * 3. Salva os dados do usuário na coleção `users` no Firestore.
+ * 4. Retorna os dados do usuário recém-criado como resposta.
+ */
 async function registerUser(req, res, next) {
   const { email, password, name } = req.body;
 
-  // Validação dos dados recebidos
   if (!email || !password || !name) {
     return next(new Error('Todos os campos (email, password, name) são obrigatórios.'));
   }
 
   try {
-    // Cria o usuário no Firebase Authentication
     const userRecord = await auth.createUser({ email, password });
     const uid = userRecord.uid;
 
-    // Cria o usuário no Firestore com o uid gerado
     const userData = {
-      name,    // Nome do usuário
-      email    // Email do usuário
+      name,
+      email
     };
 
     await firestore.collection('users').doc(uid).set(userData);
 
-    // Recupera o usuário do Firestore para retornar os dados
     const userRef = firestore.collection('users').doc(uid);
     const doc = await userRef.get();
 
@@ -54,15 +78,33 @@ async function registerUser(req, res, next) {
     });
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
-    return next(error);  // Passa o erro para o middleware handleError
+    return next(error);
   }
 }
 
-// Fazer login
+/**
+ * Realiza o login de um usuário no sistema.
+ *
+ * @param {Object} req - Objeto da requisição HTTP contendo as credenciais do usuário.
+ * @param {Object} req.body - Corpo da requisição contendo as informações de login.
+ * @param {string} req.body.email - Endereço de e-mail do usuário.
+ * @param {string} req.body.password - Senha do usuário.
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ * @param {Function} next - Função de callback para passar para o próximo middleware em caso de erro.
+ *
+ * @throws {Error} - Lança erros se os campos obrigatórios não forem fornecidos,
+ *                   se o usuário não for encontrado no sistema de autenticação,
+ *                   ou se houver falha ao buscar os dados no Firestore.
+ *
+ * Fluxo de execução:
+ * 1. Valida se os campos `email` e `password` estão presentes.
+ * 2. Busca o usuário pelo e-mail no sistema de autenticação usando `auth.getUserByEmail`.
+ * 3. Recupera os dados do usuário no Firestore usando o UID.
+ * 4. Retorna os dados do usuário autenticado como resposta.
+ */
 const login = async (req, res, next) => {
   const { email, password } = req.body;
 
-  // Validação dos dados recebidos
   if (!email || !password) {
     return next(new Error('Os campos de email e senha são obrigatórios.'));
   }
@@ -85,16 +127,37 @@ const login = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Erro ao fazer login:", error);
-    return next(error);  // Passa o erro para o middleware handleError
+    return next(error);
   }
 };
 
-// Atualizar usuário
+/**
+ * Atualiza o perfil de um usuário no sistema.
+ *
+ * @param {Object} req - Objeto da requisição HTTP contendo os dados para atualização.
+ * @param {Object} req.params - Parâmetros da URL.
+ * @param {string} req.params.uid - Identificador único do usuário cujo perfil será atualizado.
+ * @param {Object} req.body - Corpo da requisição contendo os campos a serem atualizados.
+ * @param {Object} [req.file] - Arquivo enviado para atualizar a imagem de perfil do usuário (opcional).
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ * @param {Function} next - Função de callback para passar para o próximo middleware em caso de erro.
+ *
+ * @throws {Error} - Lança erros se o UID não for fornecido,
+ *                   se ocorrer um problema ao salvar a imagem de perfil no armazenamento,
+ *                   se a atualização do Firestore falhar,
+ *                   ou se houver falha ao recuperar os dados atualizados.
+ *
+ * Fluxo de execução:
+ * 1. Valida se o `uid` está presente nos parâmetros da URL.
+ * 2. Se uma imagem de perfil for enviada (`req.file`), faz o upload da imagem para o armazenamento e gera uma URL de download público.
+ * 3. Atualiza os campos fornecidos no Firestore para o usuário identificado pelo `uid`.
+ * 4. Recupera os dados atualizados do Firestore para confirmar a atualização.
+ * 5. Retorna os dados atualizados do usuário como resposta.
+ */
 async function updateUserProfile(req, res, next) {
   const { uid } = req.params;
   const updates = req.body;
 
-  // Validação: verificar se o uid foi fornecido na URL
   if (!uid) {
     return next(new Error('O parâmetro UID é obrigatório.'));
   }
@@ -130,11 +193,20 @@ async function updateUserProfile(req, res, next) {
     });
   } catch (error) {
     console.error('Erro ao atualizar o perfil:', error);
-    return next(error);  // Passa o erro para o middleware handleError
+    return next(error);
   }
 }
 
-// Logout
+/**
+ * Realiza o logout do usuário no sistema.
+ *
+ * @param {Object} req - Objeto da requisição HTTP.
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ *
+ * Fluxo de execução:
+ * 1. Cria uma mensagem indicando o sucesso do logout.
+ * 2. Retorna a mensagem em formato JSON com status HTTP 200.
+ */
 function logout(req, res) {
   const message = {
     title: 'Logout bem-sucedido',
@@ -143,11 +215,25 @@ function logout(req, res) {
   res.status(200).json(message);
 }
 
-// Buscar perfil de usuário por uid
+/**
+ * Recupera o perfil de um usuário com base no UID fornecido.
+ *
+ * @param {Object} req - Objeto da requisição HTTP.
+ * @param {Object} req.params - Parâmetros da URL.
+ * @param {string} req.params.uid - Identificador único do usuário cujo perfil será recuperado.
+ * @param {Object} res - Objeto da resposta HTTP usado para enviar a resposta.
+ * @param {Function} next - Função de callback para passar para o próximo middleware em caso de erro.
+ *
+ * @throws {Error} - Lança erros se o UID não for fornecido ou se ocorrer falha ao recuperar os dados do usuário.
+ *
+ * Fluxo de execução:
+ * 1. Valida se o `uid` está presente nos parâmetros da URL.
+ * 2. Chama a função `getUser` para recuperar os dados do usuário.
+ * 3. Retorna o perfil do usuário como resposta em formato JSON.
+ */
 async function getUserProfile(req, res, next) {
   const { uid } = req.params;
 
-  // Validação: verificar se o UID foi fornecido na URL
   if (!uid) {
     return next(new Error('O parâmetro UID é obrigatório.'));
   }
@@ -160,7 +246,7 @@ async function getUserProfile(req, res, next) {
       ...user
     });
   } catch (error) {
-    return next(error);  // Passa o erro para o middleware handleError
+    return next(error);
   }
 }
 
